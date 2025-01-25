@@ -8,7 +8,7 @@ model_path = 'pupil_tracker.pt'
 model = YOLO(model_path)
 
 # Número máximo de vídeos (substitua por x ou ajuste conforme necessário)
-num_videos = 3  # Por exemplo, se você tem pupil_0 a pupil_9
+num_videos = 5  # Por exemplo, se você tem pupil_0 a pupil_9
 
 for i in range(num_videos):
     # Caminho para o vídeo de entrada
