@@ -57,21 +57,38 @@ else:
             # Anotar as detecções no frame
             annotated_frame = frame.copy()  # Cópia do frame para anotações
             for result in results:
-                if hasattr(result, "boxes") and result.boxes is not None:
-                    for box in result.boxes.xyxy:
+                if hasattr(result, "masks") and result.masks is not None:
+                    masks = result.masks.data.cpu().numpy()  # Máscaras segmentadas como array numpy
+
+                    for mask, box, confidence in zip(masks, result.boxes.xyxy, result.boxes.conf):
                         bbox = box.cpu().numpy().astype(int)
                         x_min, y_min, x_max, y_max = bbox
+                        conf = confidence.item()  # Obter o valor de confiança como float
+
+                        # Criar máscara limitada ao bbox
+                        mask_resized = cv2.resize(mask, (frame.shape[1], frame.shape[0]))  # Ajusta o tamanho da máscara
+                        mask_resized = (mask_resized > 0.5).astype('uint8')  # Limite binário para a máscara
+                        mask_roi = mask_resized[y_min:y_max, x_min:x_max]  # Limitar ao bbox
+
+                        # Aplicar a máscara verde na área do bbox
+                        green_overlay = annotated_frame[y_min:y_max, x_min:x_max].copy()
+                        green_overlay[mask_roi == 1] = (0, 255, 0)  # Cor verde
+                        cv2.addWeighted(green_overlay, 0.4, annotated_frame[y_min:y_max, x_min:x_max], 0.6, 0,
+                                        annotated_frame[y_min:y_max, x_min:x_max])
 
                         # Desenhar a caixa delimitadora (bbox)
                         cv2.rectangle(annotated_frame, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
 
-                        # Adicionar um identificador de rastreamento, se disponível
+                        # Adicionar o identificador de rastreamento e confiança
+                        label = f"Conf: {conf:.2f}"
                         if hasattr(result, "id") and result.id is not None:
                             tracker_id = result.id
-                            cv2.putText(
-                                annotated_frame, f"ID: {tracker_id}",
-                                (x_min, y_min - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1
-                            )
+                            label = f"ID: {tracker_id}, {label}"
+
+                        cv2.putText(
+                            annotated_frame, label,
+                            (x_min, y_min - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1
+                        )
 
             # Exibir o frame com as detecções
             cv2.imshow("YOLO Tracking com Rastreamento", annotated_frame)
